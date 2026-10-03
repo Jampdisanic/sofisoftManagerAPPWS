@@ -14,6 +14,7 @@ import { LineChart, BarChart } from 'react-native-chart-kit';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useTheme } from '@/constants/ThemeContext';
+import { usePermissions, PERMISSION_IDS } from '@/constants/PermissionsContext';
 import { db, collection, query, where, onSnapshot, orderBy, limit, getDocs } from '../../lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 
@@ -38,6 +39,7 @@ export default function HomeScreen() {
   const { colorScheme } = useTheme();
   const isDark = colorScheme === 'dark';
   const router = useRouter();
+  const { hasPermission } = usePermissions();
 
   const [userName, setUserName] = useState('Administrador');
   const [businessName, setBusinessName] = useState('SOFISOFT');
@@ -366,13 +368,28 @@ export default function HomeScreen() {
           ))}
         </View>
 
-        {/*<ThemedText type="subtitle" style={[styles.sectionTitle, { color: isDark ? '#ffffff' : '#1e293b' }]}>Movimiento </ThemedText>
-        <View style={styles.gridContainer}>
-          <QuickButton title="Inventario" subtitle="Kardex Real" icon="cube-outline" color="#3b82f6" isDark={isDark} />
-          <QuickButton title="Cierres" subtitle="Caja y Ventas" icon="calculator-outline" color="#8b5cf6" isDark={isDark} />
-          <QuickButton title="Reportes" subtitle="Estadísticas" icon="bar-chart-outline" color="#ec4899" isDark={isDark} />
-          <QuickButton title="Usuarios" subtitle="Vendedores" icon="people-outline" color="#f97316" isDark={isDark} />
-        </View>*/}
+        {/* Acciones Rápidas (Seguridad Aplicada) */}
+        {hasPermission(PERMISSION_IDS.CREAR_PROFORMA).canCreate && (
+          <>
+            <ThemedText type="subtitle" style={[styles.sectionTitle, { color: isDark ? '#ffffff' : '#1e293b' }]}>
+              Acciones Rápidas
+            </ThemedText>
+            <View style={styles.gridContainer}>
+              <TouchableOpacity 
+                style={[styles.quickActionButton, { backgroundColor: isDark ? '#334155' : '#ffffff', borderColor: isDark ? '#475569' : '#e2e8f0' }]}
+                onPress={() => router.push('/(proformas)/crear')}
+              >
+                <View style={[styles.quickActionIcon, { backgroundColor: '#3b82f620' }]}>
+                  <Ionicons name="document-text-outline" size={24} color="#3b82f6" />
+                </View>
+                <View style={styles.quickActionText}>
+                  <ThemedText style={{ fontWeight: 'bold', color: isDark ? '#ffffff' : '#1e293b' }}>Nueva Proforma</ThemedText>
+                  <ThemedText style={{ fontSize: 12, color: isDark ? '#cbd5e1' : '#64748b' }}>Crear cotización</ThemedText>
+                </View>
+              </TouchableOpacity>
+            </View>
+          </>
+        )}
 
         <View style={styles.chartHeader}>
           <ThemedText type="subtitle" style={[styles.sectionTitle, { color: isDark ? '#ffffff' : '#1e293b' }]}>Ventas {selectedYear}</ThemedText>

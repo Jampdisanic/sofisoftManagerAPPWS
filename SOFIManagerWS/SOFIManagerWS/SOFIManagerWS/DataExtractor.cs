@@ -1574,5 +1574,41 @@ namespace SOFIManagerWS
                 PropertyNamingPolicy = null
             });
         }
+        public async Task<(bool Success, string Message, int NFact)> GuardarProformaAsync(string xmlDoc, int cnt)
+        {
+            try
+            {
+                using var connection = new MySqlConnection(_connectionString);
+                await connection.OpenAsync();
+
+                using var command = new MySqlCommand("paGuardarProforma", connection);
+                command.CommandType = System.Data.CommandType.StoredProcedure;
+
+                // Parámetros de salida
+                var pMessage = new MySqlParameter("_message", MySqlDbType.LongText) { Direction = System.Data.ParameterDirection.Output };
+                var pNFact = new MySqlParameter("_NFACT", MySqlDbType.Int32) { Direction = System.Data.ParameterDirection.Output };
+                
+                // Parámetros de entrada
+                var pXml = new MySqlParameter("_XmlDoc", MySqlDbType.LongText) { Value = xmlDoc };
+                var pCnt = new MySqlParameter("_Cnt", MySqlDbType.Int32) { Value = cnt };
+
+                command.Parameters.Add(pMessage);
+                command.Parameters.Add(pNFact);
+                command.Parameters.Add(pXml);
+                command.Parameters.Add(pCnt);
+
+                await command.ExecuteNonQueryAsync();
+
+                string outMessage = pMessage.Value?.ToString();
+                int outNFact = pNFact.Value != DBNull.Value ? Convert.ToInt32(pNFact.Value) : 0;
+
+                return (outMessage == "success", outMessage, outNFact);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al guardar proforma en MySQL.");
+                return (false, ex.Message, 0);
+            }
+        }
     }
 }

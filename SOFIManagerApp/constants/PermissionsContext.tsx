@@ -24,6 +24,9 @@ export const PERMISSION_IDS = {
   MODULO_COMPRAS: 8,
   MODULO_INVENTARIO: 10,
   MODULO_ADMINISTRACION: 17,
+  
+  // Acciones / Pantallas
+  CREAR_PROFORMA: 2,        // (ventas)/proformas
 };
 
 type PermissionData = {
