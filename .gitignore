@@ -1,0 +1,23 @@
+# .NET Core
+bin/
+obj/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.dll
+*.exe
+*.pdb
+
+# React Native / Node
+node_modules/
+npm-debug.log
+yarn-error.log
+.expo/
+dist/
+build/
+.env
+
+# OS Files
+.DS_Store
+Thumbs.db
