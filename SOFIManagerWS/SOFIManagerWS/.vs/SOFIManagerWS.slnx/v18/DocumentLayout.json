@@ -1,0 +1,101 @@
+{
+  "Version": 1,
+  "WorkspaceRootPath": "C:\\Users\\DESARROLLO\\source\\repos\\SOFIManagerPVMaster\\SOFIManagerWS\\SOFIManagerWS\\",
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{50BE0D84-0FD5-79CE-6736-68431B71BAA6}|SOFIManagerWS\\SOFIManagerWS.csproj|c:\\users\\desarrollo\\source\\repos\\sofimanagerpvmaster\\sofimanagerws\\sofimanagerws\\sofimanagerws\\worker.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{50BE0D84-0FD5-79CE-6736-68431B71BAA6}|SOFIManagerWS\\SOFIManagerWS.csproj|solutionrelative:sofimanagerws\\worker.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{50BE0D84-0FD5-79CE-6736-68431B71BAA6}|SOFIManagerWS\\SOFIManagerWS.csproj|c:\\users\\desarrollo\\source\\repos\\sofimanagerpvmaster\\sofimanagerws\\sofimanagerws\\sofimanagerws\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{50BE0D84-0FD5-79CE-6736-68431B71BAA6}|SOFIManagerWS\\SOFIManagerWS.csproj|solutionrelative:sofimanagerws\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{50BE0D84-0FD5-79CE-6736-68431B71BAA6}|SOFIManagerWS\\SOFIManagerWS.csproj|c:\\users\\desarrollo\\source\\repos\\sofimanagerpvmaster\\sofimanagerws\\sofimanagerws\\sofimanagerws\\controllers\\reportscontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{50BE0D84-0FD5-79CE-6736-68431B71BAA6}|SOFIManagerWS\\SOFIManagerWS.csproj|solutionrelative:sofimanagerws\\controllers\\reportscontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{50BE0D84-0FD5-79CE-6736-68431B71BAA6}|SOFIManagerWS\\SOFIManagerWS.csproj|c:\\users\\desarrollo\\source\\repos\\sofimanagerpvmaster\\sofimanagerws\\sofimanagerws\\sofimanagerws\\dataextractor.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{50BE0D84-0FD5-79CE-6736-68431B71BAA6}|SOFIManagerWS\\SOFIManagerWS.csproj|solutionrelative:sofimanagerws\\dataextractor.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{50BE0D84-0FD5-79CE-6736-68431B71BAA6}|SOFIManagerWS\\SOFIManagerWS.csproj|c:\\users\\desarrollo\\source\\repos\\sofimanagerpvmaster\\sofimanagerws\\sofimanagerws\\sofimanagerws\\sofimanagerws.csproj||{FA3CD31E-987B-443A-9B81-186104E8DAC1}|",
+      "RelativeMoniker": "D:0:0:{50BE0D84-0FD5-79CE-6736-68431B71BAA6}|SOFIManagerWS\\SOFIManagerWS.csproj|solutionrelative:sofimanagerws\\sofimanagerws.csproj||{FA3CD31E-987B-443A-9B81-186104E8DAC1}|"
+    }
+  ],
+  "DocumentGroupContainers": [
+    {
+      "Orientation": 0,
+      "VerticalTabListWidth": 256,
+      "DocumentGroups": [
+        {
+          "DockedWidth": 200,
+          "SelectedChildIndex": 3,
+          "Children": [
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "Program.cs",
+              "DocumentMoniker": "C:\\Users\\DESARROLLO\\source\\repos\\SOFIManagerPVMaster\\SOFIManagerWS\\SOFIManagerWS\\SOFIManagerWS\\Program.cs",
+              "RelativeDocumentMoniker": "SOFIManagerWS\\Program.cs",
+              "ToolTip": "C:\\Users\\DESARROLLO\\source\\repos\\SOFIManagerPVMaster\\SOFIManagerWS\\SOFIManagerWS\\SOFIManagerWS\\Program.cs",
+              "RelativeToolTip": "SOFIManagerWS\\Program.cs",
+              "ViewState": "AgIAAFgAAAAAAAAAAAAiwHMAAAAgAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-10-02T20:36:50.2Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 4,
+              "Title": "SOFIManagerWS.csproj",
+              "DocumentMoniker": "C:\\Users\\DESARROLLO\\source\\repos\\SOFIManagerPVMaster\\SOFIManagerWS\\SOFIManagerWS\\SOFIManagerWS\\SOFIManagerWS.csproj",
+              "RelativeDocumentMoniker": "SOFIManagerWS\\SOFIManagerWS.csproj",
+              "ToolTip": "C:\\Users\\DESARROLLO\\source\\repos\\SOFIManagerPVMaster\\SOFIManagerWS\\SOFIManagerWS\\SOFIManagerWS\\SOFIManagerWS.csproj",
+              "RelativeToolTip": "SOFIManagerWS\\SOFIManagerWS.csproj",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABMAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000758|",
+              "WhenOpened": "2026-07-17T17:43:29.631Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "ReportsController.cs",
+              "DocumentMoniker": "C:\\Users\\DESARROLLO\\source\\repos\\SOFIManagerPVMaster\\SOFIManagerWS\\SOFIManagerWS\\SOFIManagerWS\\Controllers\\ReportsController.cs",
+              "RelativeDocumentMoniker": "SOFIManagerWS\\Controllers\\ReportsController.cs",
+              "ToolTip": "C:\\Users\\DESARROLLO\\source\\repos\\SOFIManagerPVMaster\\SOFIManagerWS\\SOFIManagerWS\\SOFIManagerWS\\Controllers\\ReportsController.cs",
+              "RelativeToolTip": "SOFIManagerWS\\Controllers\\ReportsController.cs",
+              "ViewState": "AgIAAIkAAAAAAAAAAAAQwJ4AAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-05-16T17:31:05.925Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "Worker.cs",
+              "DocumentMoniker": "C:\\Users\\DESARROLLO\\source\\repos\\SOFIManagerPVMaster\\SOFIManagerWS\\SOFIManagerWS\\SOFIManagerWS\\Worker.cs",
+              "RelativeDocumentMoniker": "SOFIManagerWS\\Worker.cs",
+              "ToolTip": "C:\\Users\\DESARROLLO\\source\\repos\\SOFIManagerPVMaster\\SOFIManagerWS\\SOFIManagerWS\\SOFIManagerWS\\Worker.cs",
+              "RelativeToolTip": "SOFIManagerWS\\Worker.cs",
+              "ViewState": "AgIAADIAAAAAAAAAAAAqwEEAAABdAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-05-08T20:51:10.799Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 3,
+              "Title": "DataExtractor.cs",
+              "DocumentMoniker": "C:\\Users\\DESARROLLO\\source\\repos\\SOFIManagerPVMaster\\SOFIManagerWS\\SOFIManagerWS\\SOFIManagerWS\\DataExtractor.cs",
+              "RelativeDocumentMoniker": "SOFIManagerWS\\DataExtractor.cs",
+              "ToolTip": "C:\\Users\\DESARROLLO\\source\\repos\\SOFIManagerPVMaster\\SOFIManagerWS\\SOFIManagerWS\\SOFIManagerWS\\DataExtractor.cs",
+              "RelativeToolTip": "SOFIManagerWS\\DataExtractor.cs",
+              "ViewState": "AgIAAIsAAAAAAAAAAAAiwKgAAAAVAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-05-08T16:30:02.594Z"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
