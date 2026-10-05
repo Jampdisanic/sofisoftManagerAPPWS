@@ -241,9 +241,12 @@ namespace SOFIManagerWS
                         a.PVENTA2, 
                         a.PVENTA3, 
                         IFNULL(a.ExistenciaMinima, 0) AS ExistenciaMinima, 
-                        IFNULL(a.ExistenciaMaxima, 0) AS ExistenciaMaxima
+                        IFNULL(a.ExistenciaMaxima, 0) AS ExistenciaMaxima,
+                        a.TipoDeArticuloId,
+                        tda.Nombre AS TipoDeArticuloNombre
                     FROM articulo a
-                    INNER JOIN grupo g ON a.CODG = g.CODG;";
+                    INNER JOIN grupo g ON a.CODG = g.CODG
+                    INNER JOIN tipodearticulo tda ON a.TipoDeArticuloId = tda.Id;";
 
                 using var command = new MySqlCommand(query, connection);
                 using var reader = await command.ExecuteReaderAsync();

@@ -545,4 +545,24 @@ const styles = StyleSheet.create({
   recentAmount: { fontSize: 13, fontWeight: 'bold' },
   emptyChart: { height: 180, justifyContent: 'center', alignItems: 'center' },
   emptyChartText: { marginTop: 10, fontSize: 12, color: '#94a3b8' },
+  quickActionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+    marginBottom: 16,
+    width: '100%'
+  },
+  quickActionIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  quickActionText: {
+    flex: 1,
+  },
 });

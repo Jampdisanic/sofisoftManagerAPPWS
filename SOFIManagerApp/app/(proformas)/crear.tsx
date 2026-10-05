@@ -1,24 +1,24 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { 
-  View, 
-  ScrollView, 
-  StyleSheet, 
-  TouchableOpacity, 
-  TextInput, 
-  KeyboardAvoidingView, 
-  SafeAreaView,
-  Platform,
-  Alert,
-  Modal,
-  FlatList,
-  ActivityIndicator
-} from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
+import { ThemedView } from '@/components/themed-view';
 import { useTheme } from '@/constants/ThemeContext';
-import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useRouter } from 'expo-router';
+import React, { useEffect, useMemo, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  TouchableOpacity,
+  View
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 type ArticuloProforma = {
   id: string; // Identificador único real (IDART)
@@ -27,6 +27,8 @@ type ArticuloProforma = {
   cantidad: number;
   precio: number;
   iva: number;
+  descuento: number; // Descuento monetario unitario
+  raw: any; // Para acceder a PVENTA2, PVENTA3, etc.
 };
 
 export default function CrearProformaScreen() {
@@ -47,12 +49,18 @@ export default function CrearProformaScreen() {
   // Modales
   const [showClientesModal, setShowClientesModal] = useState(false);
   const [showArticulosModal, setShowArticulosModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editItem, setEditItem] = useState<ArticuloProforma | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  
+  const [descMontoInput, setDescMontoInput] = useState('');
+  const [descPorcInput, setDescPorcInput] = useState('');
 
   // Totales
   const subtotal = detalles.reduce((acc, item) => acc + (item.precio * item.cantidad), 0);
+  const totalDescuento = detalles.reduce((acc, item) => acc + ((item.descuento || 0) * item.cantidad), 0);
   const totalIva = detalles.reduce((acc, item) => acc + (item.iva * item.cantidad), 0);
-  const totalFinal = subtotal + totalIva;
+  const totalFinal = subtotal - totalDescuento + totalIva;
 
   useEffect(() => {
     cargarCatalogos();
@@ -82,7 +90,7 @@ export default function CrearProformaScreen() {
   };
 
   const clientesFiltrados = useMemo(() => {
-    if (!searchQuery) return clientesRaw;
+    if (!searchQuery) return clientesRaw.slice(0, 100);
     return clientesRaw.filter(c => 
       c.NOMBRE?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       c.IDCLIENTE?.toString().includes(searchQuery)
@@ -90,10 +98,11 @@ export default function CrearProformaScreen() {
   }, [clientesRaw, searchQuery]);
 
   const articulosFiltrados = useMemo(() => {
-    if (!searchQuery) return articulosRaw;
+    if (!searchQuery) return articulosRaw.slice(0, 100);
     return articulosRaw.filter(a => 
       a.NOMBRE?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      a.CODG?.toLowerCase().includes(searchQuery.toLowerCase())
+      a.CODG?.toString().includes(searchQuery) ||
+      a.IDART?.toString().includes(searchQuery)
     );
   }, [articulosRaw, searchQuery]);
 
@@ -114,16 +123,80 @@ export default function CrearProformaScreen() {
       const precioVenta = art.PVENTA1 ? parseFloat(art.PVENTA1) : 0;
       const nuevoArticulo: ArticuloProforma = {
         id: artIdUnico,
-        codigo: art.CODG || artIdUnico, // Para mandar al backend
+        codigo: art.IDART, // Para mandar al backend
         nombre: art.NOMBRE,
         cantidad: 1,
         precio: precioVenta,
-        iva: 0 
+        iva: 0,
+        descuento: 0,
+        raw: art
       };
       setDetalles([...detalles, nuevoArticulo]);
     }
     setShowArticulosModal(false);
     setSearchQuery('');
+  };
+
+  const editarArticulo = (index: number) => {
+    const item = detalles[index];
+    setEditItem(item);
+    if (item.descuento && item.precio > 0) {
+      setDescMontoInput(item.descuento.toString());
+      setDescPorcInput(((item.descuento * 100) / item.precio).toFixed(2).replace(/\.00$/, ''));
+    } else {
+      setDescMontoInput('');
+      setDescPorcInput('');
+    }
+    setShowEditModal(true);
+  };
+
+  const cambiarPrecio = (nuevoPrecio: number) => {
+    if (editItem) {
+      const index = detalles.findIndex(d => d.id === editItem.id);
+      if (index >= 0) {
+        const nuevosDetalles = [...detalles];
+        nuevosDetalles[index].precio = nuevoPrecio;
+        nuevosDetalles[index].descuento = 0; 
+        setDetalles(nuevosDetalles);
+        setEditItem({ ...editItem, precio: nuevoPrecio, descuento: 0 });
+        setDescMontoInput('');
+        setDescPorcInput('');
+      }
+    }
+  };
+
+  const aplicarDescuentoPorcManual = (val: string) => {
+    setDescPorcInput(val);
+    if (editItem) {
+      const porc = parseFloat(val) || 0;
+      const montoDescuento = (editItem.precio * porc) / 100;
+      setDescMontoInput(montoDescuento > 0 ? montoDescuento.toFixed(2) : '');
+      
+      const index = detalles.findIndex(d => d.id === editItem.id);
+      if (index >= 0) {
+        const nuevosDetalles = [...detalles];
+        nuevosDetalles[index].descuento = montoDescuento;
+        setDetalles(nuevosDetalles);
+        setEditItem({ ...editItem, descuento: montoDescuento });
+      }
+    }
+  };
+
+  const aplicarDescuentoMontoManual = (val: string) => {
+    setDescMontoInput(val);
+    if (editItem) {
+      const montoDescuento = parseFloat(val) || 0;
+      const porc = (montoDescuento * 100) / editItem.precio;
+      setDescPorcInput(porc > 0 ? porc.toFixed(2) : '');
+      
+      const index = detalles.findIndex(d => d.id === editItem.id);
+      if (index >= 0) {
+        const nuevosDetalles = [...detalles];
+        nuevosDetalles[index].descuento = montoDescuento;
+        setDetalles(nuevosDetalles);
+        setEditItem({ ...editItem, descuento: montoDescuento });
+      }
+    }
   };
 
   const incrementarCantidad = (index: number) => {
@@ -158,7 +231,7 @@ export default function CrearProformaScreen() {
         IdUser: 1, 
         EstatusDoc: 1, // Proforma
         Subtotal: subtotal,
-        Descuento: 0,
+        Descuento: totalDescuento,
         TotalFinal: totalFinal,
         MontoRecibido: 0,
         Saldo: totalFinal,
@@ -169,8 +242,8 @@ export default function CrearProformaScreen() {
         Detalles: detalles.map(d => ({
           Codigo: d.id, // Se manda el IDART estrictamente
           Cantidad: d.cantidad,
-          Total: d.precio * d.cantidad,
-          Descuento: 0,
+          Total: (d.precio - (d.descuento || 0)) * d.cantidad,
+          Descuento: (d.descuento || 0) * d.cantidad,
           Precio: d.precio,
           Impto: d.iva * d.cantidad,
           Nombre: d.nombre,
@@ -209,10 +282,10 @@ export default function CrearProformaScreen() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: isDark ? '#1e293b' : '#2563eb' }}>
+    <View style={{ flex: 1, backgroundColor: isDark ? '#1e293b' : '#2563eb' }}>
       <KeyboardAvoidingView 
         style={{ flex: 1 }} 
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'android' ? 'padding' : undefined}
       >
         <ThemedView style={[styles.container, { backgroundColor: isDark ? '#1e293b' : '#f8fafc' }]}>
           
@@ -227,7 +300,7 @@ export default function CrearProformaScreen() {
 
           {/* Header - Selección de Cliente */}
           <TouchableOpacity 
-            style={[styles.headerCard, { backgroundColor: isDark ? '#334155' : '#ffffff' }]}
+            style={[styles.headerCard, { backgroundColor: isDark ? '#334155' : '#ffffff'}]}
             onPress={() => { setSearchQuery(''); setShowClientesModal(true); }}
           >
             <View style={styles.headerRow}>
@@ -267,7 +340,7 @@ export default function CrearProformaScreen() {
                 <View key={index} style={[styles.itemCard, { backgroundColor: isDark ? '#334155' : '#ffffff' }]}>
                   <View style={styles.itemInfo}>
                     <ThemedText type="defaultSemiBold">{item.nombre}</ThemedText>
-                    <ThemedText style={{ fontSize: 12, color: '#3b82f6' }}>ID: {item.id} {item.codigo !== item.id ? `| Cód: ${item.codigo}` : ''}</ThemedText>
+                    <ThemedText style={{ fontSize: 12, color: '#3b82f6' }}>ID: {item.id}</ThemedText>
                     <ThemedText style={{ fontSize: 14, marginTop: 4 }}>Precio: C$ {item.precio.toFixed(2)}</ThemedText>
                   </View>
                   
@@ -275,14 +348,20 @@ export default function CrearProformaScreen() {
                     <ThemedText type="defaultSemiBold" style={{ textAlign: 'right', marginBottom: 8 }}>
                       C$ {(item.precio * item.cantidad).toFixed(2)}
                     </ThemedText>
-                    <View style={styles.quantityControl}>
-                      <TouchableOpacity style={styles.qtyButton} onPress={() => decrementarCantidad(index)}>
-                        <Ionicons name="remove" size={16} color={isDark ? '#ffffff' : '#000000'} />
+                    <View style={styles.actionsRow}>
+                      <TouchableOpacity style={[styles.editButton, { backgroundColor: isDark ? '#1e293b' : '#eff6ff' }]} onPress={() => editarArticulo(index)}>
+                        <Ionicons name="pencil" size={16} color="#3b82f6" />
                       </TouchableOpacity>
-                      <ThemedText style={styles.qtyText}>{item.cantidad}</ThemedText>
-                      <TouchableOpacity style={styles.qtyButton} onPress={() => incrementarCantidad(index)}>
-                        <Ionicons name="add" size={16} color={isDark ? '#ffffff' : '#000000'} />
-                      </TouchableOpacity>
+                      
+                      <View style={styles.quantityControl}>
+                        <TouchableOpacity style={styles.qtyButton} onPress={() => decrementarCantidad(index)}>
+                          <Ionicons name="remove" size={16} color={isDark ? '#ffffff' : '#000000'} />
+                        </TouchableOpacity>
+                        <ThemedText style={styles.qtyText}>{item.cantidad}</ThemedText>
+                        <TouchableOpacity style={styles.qtyButton} onPress={() => incrementarCantidad(index)}>
+                          <Ionicons name="add" size={16} color={isDark ? '#ffffff' : '#000000'} />
+                        </TouchableOpacity>
+                      </View>
                     </View>
                   </View>
                 </View>
@@ -343,6 +422,10 @@ export default function CrearProformaScreen() {
             <FlatList
               data={clientesFiltrados}
               keyExtractor={item => String(item.IDCLIENTE)}
+              initialNumToRender={15}
+              maxToRenderPerBatch={10}
+              windowSize={5}
+              removeClippedSubviews={true}
               renderItem={({item}) => (
                 <TouchableOpacity style={styles.modalItem} onPress={() => seleccionarCliente(item)}>
                   <ThemedText type="defaultSemiBold">{item.NOMBRE}</ThemedText>
@@ -373,11 +456,15 @@ export default function CrearProformaScreen() {
             <FlatList
               data={articulosFiltrados}
               keyExtractor={item => String(item.IDART)}
+              initialNumToRender={15}
+              maxToRenderPerBatch={10}
+              windowSize={5}
+              removeClippedSubviews={true}
               renderItem={({item}) => (
                 <TouchableOpacity style={styles.modalItem} onPress={() => seleccionarArticulo(item)}>
                   <View style={{ flex: 1 }}>
                     <ThemedText type="defaultSemiBold">{item.NOMBRE}</ThemedText>
-                    <ThemedText style={{ fontSize: 12, color: '#3b82f6' }}>Código: {item.CODG}</ThemedText>
+                    <ThemedText style={{ fontSize: 12, color: '#3b82f6' }}>Codigo: {item.IDART}</ThemedText>
                   </View>
                   <ThemedText style={{ fontWeight: 'bold' }}>C$ {parseFloat(item.PVENTA1 || 0).toFixed(2)}</ThemedText>
                 </TouchableOpacity>
@@ -386,8 +473,117 @@ export default function CrearProformaScreen() {
           </SafeAreaView>
         </Modal>
 
+        {/* MODAL DE EDICIÓN DE ARTÍCULO */}
+        <Modal visible={showEditModal} animationType="slide" transparent={true}>
+          <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}>
+            <View style={{ backgroundColor: isDark ? '#1e293b' : '#ffffff', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, minHeight: 300 }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                <View>
+                  <ThemedText type="subtitle">Opciones del Artículo</ThemedText>
+                  <ThemedText style={{ color: '#3b82f6', marginTop: 4 }}>ID: {editItem?.id}</ThemedText>
+                </View>
+                <TouchableOpacity onPress={() => setShowEditModal(false)}>
+                  <Ionicons name="close-circle" size={32} color={isDark ? '#475569' : '#cbd5e1'} />
+                </TouchableOpacity>
+              </View>
+              
+              <ScrollView style={{ marginTop: 10 }}>
+                {/* PRECIOS EN LÍNEA RECTA */}
+                <ThemedText style={{ marginBottom: 8, fontWeight: 'bold' }}>Nivel de Precio:</ThemedText>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 20 }}>
+                  {editItem?.raw && [
+                    { label: 'P1', key: 'PVENTA1' },
+                    { label: 'P2', key: 'PVENTA2' },
+                    { label: 'P3', key: 'PVENTA3' },
+                    { label: 'P4', key: 'PVENTA4' }
+                  ].filter(p => editItem.raw[p.key] && parseFloat(editItem.raw[p.key]) > 0).map((p, idx) => {
+                    const valorPrecio = parseFloat(editItem.raw[p.key]);
+                    const isSelected = editItem.precio === valorPrecio;
+                    
+                    return (
+                      <TouchableOpacity 
+                        key={idx}
+                        style={{
+                          paddingVertical: 10,
+                          paddingHorizontal: 16,
+                          borderRadius: 8,
+                          borderWidth: 1,
+                          borderColor: isSelected ? '#3b82f6' : (isDark ? '#334155' : '#e2e8f0'),
+                          backgroundColor: isSelected ? (isDark ? '#1e3a8a' : '#eff6ff') : (isDark ? '#1e293b' : '#f8fafc'),
+                          marginRight: 10,
+                          marginBottom: 10,
+                          alignItems: 'center'
+                        }}
+                        onPress={() => cambiarPrecio(valorPrecio)}
+                      >
+                        <ThemedText style={{ fontSize: 12, fontWeight: isSelected ? 'bold' : 'normal', color: isSelected ? '#3b82f6' : (isDark ? '#94a3b8' : '#64748b') }}>
+                          {p.label}
+                        </ThemedText>
+                        <ThemedText style={{ fontWeight: 'bold', fontSize: 15, color: isSelected ? '#3b82f6' : (isDark ? '#f8fafc' : '#0f172a') }}>
+                          {valorPrecio.toFixed(2)}
+                        </ThemedText>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+
+                {/* DESCUENTOS MANUALES */}
+                <ThemedText style={{ marginBottom: 8, fontWeight: 'bold' }}>Aplicar Descuento:</ThemedText>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                  <View style={{ flex: 1, marginRight: 10 }}>
+                    <ThemedText style={{ fontSize: 12, color: isDark ? '#94a3b8' : '#64748b', marginBottom: 4 }}>Porcentaje (%)</ThemedText>
+                    <TextInput
+                      style={{
+                        backgroundColor: isDark ? '#334155' : '#f1f5f9',
+                        color: isDark ? '#ffffff' : '#0f172a',
+                        height: 48,
+                        borderRadius: 12,
+                        paddingHorizontal: 16,
+                        fontSize: 16,
+                        fontWeight: 'bold'
+                      }}
+                      keyboardType="numeric"
+                      placeholder="0"
+                      placeholderTextColor="#94a3b8"
+                      value={descPorcInput}
+                      onChangeText={aplicarDescuentoPorcManual}
+                    />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <ThemedText style={{ fontSize: 12, color: isDark ? '#94a3b8' : '#64748b', marginBottom: 4 }}>Monto (C$)</ThemedText>
+                    <TextInput
+                      style={{
+                        backgroundColor: isDark ? '#334155' : '#f1f5f9',
+                        color: isDark ? '#ffffff' : '#0f172a',
+                        height: 48,
+                        borderRadius: 12,
+                        paddingHorizontal: 16,
+                        fontSize: 16,
+                        fontWeight: 'bold'
+                      }}
+                      keyboardType="numeric"
+                      placeholder="0.00"
+                      placeholderTextColor="#94a3b8"
+                      value={descMontoInput}
+                      onChangeText={aplicarDescuentoMontoManual}
+                    />
+                  </View>
+                </View>
+                
+                {/* PRECIO FINAL CALCULADO */}
+                <View style={{ marginTop: 20, padding: 16, backgroundColor: isDark ? '#334155' : '#f8fafc', borderRadius: 12, flexDirection: 'row', justifyContent: 'space-between' }}>
+                   <ThemedText style={{ fontWeight: 'bold' }}>Precio Final a cobrar:</ThemedText>
+                   <ThemedText style={{ fontWeight: 'bold', color: '#10b981', fontSize: 18 }}>
+                     C$ {editItem ? (editItem.precio - (editItem.descuento || 0)).toFixed(2) : '0.00'}
+                   </ThemedText>
+                </View>
+              </ScrollView>
+            </View>
+          </View>
+        </Modal>
+
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -399,7 +595,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingTop: 60,
+    paddingBottom: 20,
   },
   backButton: {
     marginRight: 16,
@@ -412,16 +609,23 @@ const styles = StyleSheet.create({
   },
   headerCard: {
     padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0,0,0,0.05)',
+    marginHorizontal: 16,
+    marginTop: 16,
+    marginBottom: 8,
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
   headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'center'
   },
   clientInfo: {
-    flex: 1,
+    flex: 1, margin: 10
   },
   searchButton: {
     backgroundColor: '#3b82f6',
@@ -480,6 +684,17 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     justifyContent: 'space-between',
   },
+  actionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  editButton: {
+    padding: 8,
+    marginRight: 12,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   quantityControl: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -496,6 +711,7 @@ const styles = StyleSheet.create({
   },
   footer: {
     padding: 16,
+    paddingBottom: 90, // Margen extra para que los botones aéreos (tab bar) no tapen el footer
     borderTopWidth: 1,
   },
   noteInput: {
@@ -521,7 +737,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingTop: 40,
+    paddingBottom: 16,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(0,0,0,0.1)'
   },
