@@ -69,6 +69,8 @@ namespace SOFIManagerWS
                         var clientes = await _extractor.GetClientesAsync();
                         var vendedores = await _extractor.GetVendedoresAsync();
                         var articulos = await _extractor.GetArticulosAsync();
+                        var articulosAgrupados = await _extractor.GetArticuloAgrupadoItemAsync();
+                        var articulosIntegrados = await _extractor.GetArticuloIntegradoItemAsync();
                         var configuracion = await _extractor.GetConfiguracionAsync();
                         var permisos = await _extractor.GetPermisosAsync();
                         var permiroles = await _extractor.GetPermirolesAsync();

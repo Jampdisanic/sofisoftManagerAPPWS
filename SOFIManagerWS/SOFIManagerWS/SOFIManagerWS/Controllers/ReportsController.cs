@@ -43,6 +43,36 @@ namespace SOFIManagerWS.Controllers
             }
         }
 
+        [HttpGet("articulosagrupados")]
+        public async Task<IActionResult> GetArticulosAgrupados()
+        {
+            try
+            {
+                var data = await _extractor.GetArticuloAgrupadoItemAsync();
+                return Ok(data);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error en API articulos");
+                return StatusCode(500, ex.Message);
+            }
+        }
+
+        [HttpGet("articulosintegados")]
+        public async Task<IActionResult> GetArticulosIntegrados()
+        {
+            try
+            {
+                var data = await _extractor.GetArticuloIntegradoItemAsync();
+                return Ok(data);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error en API articulos");
+                return StatusCode(500, ex.Message);
+            }
+        }
+
         [HttpGet("facturas")]
         public async Task<IActionResult> GetFacturas([FromQuery] string desde, [FromQuery] string hasta, [FromQuery] int? iduser = null)
         {

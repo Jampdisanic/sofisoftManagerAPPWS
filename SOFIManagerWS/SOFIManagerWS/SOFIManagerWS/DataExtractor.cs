@@ -274,6 +274,91 @@ namespace SOFIManagerWS
 
             return articulos;
         }
+        public async Task<List<Dictionary<string, object>>> GetArticuloAgrupadoItemAsync()
+        {
+            var articulos = new List<Dictionary<string, object>>();
+
+            try
+            {
+                using var connection = new MySqlConnection(_connectionString);
+                await connection.OpenAsync();
+
+                // AJUSTA ESTA CONSULTA a tu tabla real de usuarios
+                // Ejemplo: puede ser "usuarios", "users", "tbl_usuarios", etc.
+                string query = @"
+                    SELECT 
+                        *
+                    FROM articuloagrupadoitem;";
+
+                using var command = new MySqlCommand(query, connection);
+                using var reader = await command.ExecuteReaderAsync();
+
+                while (await reader.ReadAsync())
+                {
+                    var articulo = new Dictionary<string, object>();
+
+                    for (int i = 0; i < reader.FieldCount; i++)
+                    {
+                        string columnName = reader.GetName(i);
+                        object value = reader.IsDBNull(i) ? "" : reader.GetValue(i);
+                        articulo[columnName] = value;
+                    }
+
+                    articulos.Add(articulo);
+                }
+
+                _logger.LogInformation("Se extrajeron {Count} artículos de la base de datos.", articulos.Count);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al extraer artículos de MySQL.");
+            }
+
+            return articulos;
+        }
+
+        public async Task<List<Dictionary<string, object>>> GetArticuloIntegradoItemAsync()
+        {
+            var articulos = new List<Dictionary<string, object>>();
+
+            try
+            {
+                using var connection = new MySqlConnection(_connectionString);
+                await connection.OpenAsync();
+
+                // AJUSTA ESTA CONSULTA a tu tabla real de usuarios
+                // Ejemplo: puede ser "usuarios", "users", "tbl_usuarios", etc.
+                string query = @"
+                    SELECT 
+                        *
+                    FROM articulointegradoitem;";
+
+                using var command = new MySqlCommand(query, connection);
+                using var reader = await command.ExecuteReaderAsync();
+
+                while (await reader.ReadAsync())
+                {
+                    var articulo = new Dictionary<string, object>();
+
+                    for (int i = 0; i < reader.FieldCount; i++)
+                    {
+                        string columnName = reader.GetName(i);
+                        object value = reader.IsDBNull(i) ? "" : reader.GetValue(i);
+                        articulo[columnName] = value;
+                    }
+
+                    articulos.Add(articulo);
+                }
+
+                _logger.LogInformation("Se extrajeron {Count} artículos de la base de datos.", articulos.Count);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al extraer artículos de MySQL.");
+            }
+
+            return articulos;
+        }
 
         public async Task<List<Dictionary<string, object>>> GetGruposAsync()
         {
