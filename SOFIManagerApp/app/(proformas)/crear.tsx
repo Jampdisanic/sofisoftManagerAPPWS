@@ -29,6 +29,9 @@ type ArticuloProforma = {
   iva: number;
   descuento: number; // Descuento monetario unitario
   raw: any; // Para acceder a PVENTA2, PVENTA3, etc.
+  agrupado?: boolean;
+  baseCantidad?: number;
+  basePrecio?: number;
 };
 
 export default function CrearProformaScreen() {
@@ -39,7 +42,9 @@ export default function CrearProformaScreen() {
   // Estados de datos
   const [clientesRaw, setClientesRaw] = useState<any[]>([]);
   const [articulosRaw, setArticulosRaw] = useState<any[]>([]);
+  const [agrupadosRaw, setAgrupadosRaw] = useState<any[]>([]);
   const [isLoadingData, setIsLoadingData] = useState(false);
+  const [noResumirLineas, setNoResumirLineas] = useState(false);
 
   // Estados del Formulario
   const [clienteSel, setClienteSel] = useState<any>({ IDCLIENTE: 1, NOMBRE: 'CLIENTE CONTADO' });
@@ -55,6 +60,17 @@ export default function CrearProformaScreen() {
   
   const [descMontoInput, setDescMontoInput] = useState('');
   const [descPorcInput, setDescPorcInput] = useState('');
+  
+  // Flotantes
+  const [showFlotanteModal, setShowFlotanteModal] = useState(false);
+  const [flotanteArt, setFlotanteArt] = useState<any>(null);
+  const [flotanteNombre, setFlotanteNombre] = useState('');
+  const [flotantePrecio, setFlotantePrecio] = useState('');
+
+  // Agrupados
+  const [showAgrupadoModal, setShowAgrupadoModal] = useState(false);
+  const [agrupadoArt, setAgrupadoArt] = useState<any>(null);
+  const [gruposDisponibles, setGruposDisponibles] = useState<any[]>([]);
 
   // Totales
   const subtotal = detalles.reduce((acc, item) => acc + (item.precio * item.cantidad), 0);
@@ -80,6 +96,19 @@ export default function CrearProformaScreen() {
           // Fetch Artículos
           const resArt = await fetch(`http://${config.directIp}:5246/api/reports/articulos`);
           if (resArt.ok) setArticulosRaw(await resArt.json());
+
+          // Fetch Agrupados
+          const resAgrup = await fetch(`http://${config.directIp}:5246/api/reports/articulosagrupados`);
+          if (resAgrup.ok) setAgrupadosRaw(await resAgrup.json());
+
+          // Fetch Configuración
+          const resConf = await fetch(`http://${config.directIp}:5246/api/reports/configuracion`);
+          if (resConf.ok) {
+            const confData = await resConf.json();
+            if (confData && confData.length > 0) {
+              setNoResumirLineas(confData[0].NoResumirLineasDeFactura === 1 || confData[0].NoResumirLineasDeFactura === "1");
+            }
+          }
         }
       }
     } catch (e) {
@@ -113,10 +142,32 @@ export default function CrearProformaScreen() {
   };
 
   const seleccionarArticulo = (art: any) => {
-    // Usamos ESTRICTAMENTE el IDART como identificador único en la interfaz
-    const artIdUnico = String(art.IDART);
+    // Si es tipo flotante, abrir su modal especial
+    if (art.TipoDeArticuloNombre?.toLowerCase() === 'flotante') {
+      setFlotanteArt(art);
+      setFlotanteNombre(art.NOMBRE || '');
+      setFlotantePrecio(art.PVENTA1 ? parseFloat(art.PVENTA1).toFixed(2) : '0.00');
+      setShowArticulosModal(false);
+      setShowFlotanteModal(true);
+      return;
+    }
+
+    // Si es tipo agrupado
+    if (art.TipoDeArticuloNombre?.toLowerCase() === 'agrupado') {
+      setAgrupadoArt(art);
+      const gruposDelArt = agrupadosRaw.filter(g => String(g.IDART) === String(art.IDART));
+      setGruposDisponibles(gruposDelArt);
+      setShowArticulosModal(false);
+      setShowAgrupadoModal(true);
+      return;
+    }
+
+    // Usamos ESTRICTAMENTE un ID único por fila para permitir repetir artículos sin agrupar
+    const artIdUnico = `${art.IDART}-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
     
-    const index = detalles.findIndex(d => d.id === artIdUnico);
+    // Si noResumirLineas es falso, buscamos si ya existe el artículo normal (no agrupado) en el carrito
+    const index = noResumirLineas ? -1 : detalles.findIndex(d => String(d.codigo) === String(art.IDART) && !d.agrupado);
+
     if (index >= 0) {
       incrementarCantidad(index);
     } else {
@@ -134,6 +185,62 @@ export default function CrearProformaScreen() {
       setDetalles([...detalles, nuevoArticulo]);
     }
     setShowArticulosModal(false);
+    setSearchQuery('');
+  };
+
+  const confirmarArticuloFlotante = () => {
+    if (flotanteArt) {
+      // Flotantes siempre van en líneas separadas por ser dinámicos
+      const artIdUnico = `${flotanteArt.IDART}-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+      
+      const nuevoArticulo: ArticuloProforma = {
+        id: artIdUnico,
+        codigo: flotanteArt.IDART,
+        nombre: flotanteNombre,
+        cantidad: 1,
+        precio: parseFloat(flotantePrecio) || 0,
+        iva: 0,
+        descuento: 0,
+        raw: flotanteArt
+      };
+      setDetalles([...detalles, nuevoArticulo]);
+    }
+    setShowFlotanteModal(false);
+    setSearchQuery('');
+  };
+
+  const seleccionarGrupo = (grupo: any) => {
+    if (agrupadoArt) {
+      const artIdUnico = `${agrupadoArt.IDART}-${grupo.NombreGrupo}-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+      const nombreVisual = `${grupo.NombreGrupo} de ${agrupadoArt.NOMBRE}`;
+      
+      // Buscamos si existe el mismo grupo ya en el carrito, a menos que noResumirLineas sea true
+      const index = noResumirLineas ? -1 : detalles.findIndex(d => d.codigo === agrupadoArt.IDART && d.nombre === nombreVisual);
+      
+      if (index >= 0) {
+        incrementarCantidad(index);
+      } else {
+        const cantBase = parseFloat(grupo.Cantidad) || 1;
+        const precioTotal = parseFloat(grupo.PrecioGrupo) || 0;
+        const precioUnitario = parseFloat(grupo.PrecioUnitario) || (precioTotal / cantBase);
+        
+        const nuevoArticulo: ArticuloProforma = {
+          id: artIdUnico,
+          codigo: agrupadoArt.IDART,
+          nombre: nombreVisual,
+          cantidad: 1, // Visually 1 (ej: 1 blister)
+          precio: precioTotal, // Visually 20.00
+          iva: 0,
+          descuento: 0,
+          raw: agrupadoArt,
+          agrupado: true,
+          baseCantidad: cantBase, // 10
+          basePrecio: precioUnitario // 2.00
+        };
+        setDetalles([...detalles, nuevoArticulo]);
+      }
+    }
+    setShowAgrupadoModal(false);
     setSearchQuery('');
   };
 
@@ -239,19 +346,57 @@ export default function CrearProformaScreen() {
         MontoIva: totalIva,
         MontoPagado: 0,
         NotaDeProforma: nota,
-        Detalles: detalles.map(d => ({
-          Codigo: d.id, // Se manda el IDART estrictamente
-          Cantidad: d.cantidad,
-          Total: (d.precio - (d.descuento || 0)) * d.cantidad,
-          Descuento: (d.descuento || 0) * d.cantidad,
-          Precio: d.precio,
-          Impto: d.iva * d.cantidad,
-          Nombre: d.nombre,
-          Oculto: 0,
-          DetId: "1", 
-          Sumat: 1,
-          ExtId: ""
-        }))
+        Detalles: detalles.flatMap(d => {
+          const detId = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+            var r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+            return v.toString(16);
+          });
+          
+          if (d.agrupado) {
+            return [
+              {
+                Codigo: d.codigo,
+                Cantidad: d.cantidad, // ej: 1.00 blister
+                Total: (d.precio - (d.descuento || 0)) * d.cantidad, // 20.00
+                Descuento: (d.descuento || 0) * d.cantidad,
+                Precio: d.precio, // 20.00
+                Impto: d.iva * d.cantidad,
+                Nombre: d.nombre, // "BLISTER de AZITROMICINA TAB"
+                Oculto: 0,
+                DetId: detId,
+                Sumat: 1,
+                ExtId: ""
+              },
+              {
+                Codigo: d.codigo,
+                Cantidad: d.cantidad * (d.baseCantidad || 1), // ej: 10.00 base
+                Total: (d.precio - (d.descuento || 0)) * d.cantidad, // 20.00
+                Descuento: (d.descuento || 0) * d.cantidad,
+                Precio: d.basePrecio || d.precio, // 2.00
+                Impto: d.iva * d.cantidad,
+                Nombre: d.raw?.NOMBRE || d.nombre, // "AZITROMICINA TAB"
+                Oculto: 1,
+                DetId: detId,
+                Sumat: 0,
+                ExtId: ""
+              }
+            ];
+          } else {
+            return [{
+              Codigo: d.codigo,
+              Cantidad: d.cantidad,
+              Total: (d.precio - (d.descuento || 0)) * d.cantidad,
+              Descuento: (d.descuento || 0) * d.cantidad,
+              Precio: d.precio,
+              Impto: d.iva * d.cantidad,
+              Nombre: d.nombre,
+              Oculto: 0,
+              DetId: detId, 
+              Sumat: 1,
+              ExtId: ""
+            }];
+          }
+        })
       };
 
       const configStr = await AsyncStorage.getItem('firebase_config');
@@ -345,8 +490,13 @@ export default function CrearProformaScreen() {
                   </View>
                   
                   <View style={styles.itemActions}>
-                    <ThemedText type="defaultSemiBold" style={{ textAlign: 'right', marginBottom: 8 }}>
-                      C$ {(item.precio * item.cantidad).toFixed(2)}
+                    {(item.descuento || 0) > 0 && (
+                      <ThemedText style={{ fontSize: 12, color: '#ef4444', textDecorationLine: 'line-through', textAlign: 'right' }}>
+                        C$ {(item.precio * item.cantidad).toFixed(2)}
+                      </ThemedText>
+                    )}
+                    <ThemedText type="defaultSemiBold" style={{ textAlign: 'right', marginBottom: 8, color: (item.descuento || 0) > 0 ? '#10b981' : undefined }}>
+                      C$ {((item.precio - (item.descuento || 0)) * item.cantidad).toFixed(2)}
                     </ThemedText>
                     <View style={styles.actionsRow}>
                       <TouchableOpacity style={[styles.editButton, { backgroundColor: isDark ? '#1e293b' : '#eff6ff' }]} onPress={() => editarArticulo(index)}>
@@ -373,10 +523,11 @@ export default function CrearProformaScreen() {
           <View style={[styles.footer, { backgroundColor: isDark ? '#1e293b' : '#ffffff', borderTopColor: isDark ? '#334155' : '#e2e8f0' }]}>
             <TextInput 
               style={[styles.noteInput, { backgroundColor: isDark ? '#334155' : '#f1f5f9', color: isDark ? '#ffffff' : '#000000' }]}
-              placeholder="Nota de la proforma..."
+              placeholder="NOTA DE LA PROFORMA..."
               placeholderTextColor={isDark ? '#94a3b8' : '#94a3b8'}
               value={nota}
-              onChangeText={setNota}
+              onChangeText={(val) => setNota(val.toUpperCase())}
+              autoCapitalize="characters"
             />
             
             <View style={styles.totalsRow}>
@@ -413,11 +564,12 @@ export default function CrearProformaScreen() {
             </View>
             <TextInput 
               style={[styles.modalSearch, { backgroundColor: isDark ? '#334155' : '#e2e8f0', color: isDark ? '#fff' : '#000' }]}
-              placeholder="Buscar cliente..."
+              placeholder="BUSCAR CLIENTE..."
               placeholderTextColor="#94a3b8"
               value={searchQuery}
-              onChangeText={setSearchQuery}
+              onChangeText={(val) => setSearchQuery(val.toUpperCase())}
               autoFocus
+              autoCapitalize="characters"
             />
             <FlatList
               data={clientesFiltrados}
@@ -447,11 +599,12 @@ export default function CrearProformaScreen() {
             </View>
             <TextInput 
               style={[styles.modalSearch, { backgroundColor: isDark ? '#334155' : '#e2e8f0', color: isDark ? '#fff' : '#000' }]}
-              placeholder="Buscar por nombre o código..."
+              placeholder="BUSCAR POR NOMBRE O CÓDIGO..."
               placeholderTextColor="#94a3b8"
               value={searchQuery}
-              onChangeText={setSearchQuery}
+              onChangeText={(val) => setSearchQuery(val.toUpperCase())}
               autoFocus
+              autoCapitalize="characters"
             />
             <FlatList
               data={articulosFiltrados}
@@ -577,6 +730,123 @@ export default function CrearProformaScreen() {
                      C$ {editItem ? (editItem.precio - (editItem.descuento || 0)).toFixed(2) : '0.00'}
                    </ThemedText>
                 </View>
+              </ScrollView>
+            </View>
+          </View>
+        </Modal>
+
+        {/* MODAL PARA ARTÍCULOS FLOTANTES */}
+        <Modal visible={showFlotanteModal} animationType="slide" transparent={true}>
+          <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 }}>
+            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+              <View style={{ backgroundColor: isDark ? '#1e293b' : '#ffffff', borderRadius: 24, padding: 24 }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                  <View>
+                    <ThemedText type="subtitle">Artículo Flotante</ThemedText>
+                    <ThemedText style={{ color: '#3b82f6', marginTop: 4 }}>ID: {flotanteArt?.IDART}</ThemedText>
+                  </View>
+                  <TouchableOpacity onPress={() => setShowFlotanteModal(false)}>
+                    <Ionicons name="close-circle" size={32} color={isDark ? '#475569' : '#cbd5e1'} />
+                  </TouchableOpacity>
+                </View>
+
+                <ThemedText style={{ marginBottom: 8, fontWeight: 'bold' }}>Nombre Personalizado:</ThemedText>
+                <TextInput
+                  style={{
+                    backgroundColor: isDark ? '#334155' : '#f1f5f9',
+                    color: isDark ? '#ffffff' : '#0f172a',
+                    height: 48,
+                    borderRadius: 12,
+                    paddingHorizontal: 16,
+                    fontSize: 16,
+                    marginBottom: 20
+                  }}
+                  value={flotanteNombre}
+                  onChangeText={(val) => setFlotanteNombre(val.toUpperCase())}
+                  placeholder="EJ: MANO DE OBRA..."
+                  placeholderTextColor="#94a3b8"
+                  autoCapitalize="characters"
+                />
+
+                <ThemedText style={{ marginBottom: 8, fontWeight: 'bold' }}>Precio Especial (C$):</ThemedText>
+                <TextInput
+                  style={{
+                    backgroundColor: isDark ? '#334155' : '#f1f5f9',
+                    color: isDark ? '#ffffff' : '#0f172a',
+                    height: 48,
+                    borderRadius: 12,
+                    paddingHorizontal: 16,
+                    fontSize: 16,
+                    fontWeight: 'bold',
+                    marginBottom: 24
+                  }}
+                  keyboardType="numeric"
+                  value={flotantePrecio}
+                  onChangeText={setFlotantePrecio}
+                  placeholder="0.00"
+                  placeholderTextColor="#94a3b8"
+                />
+
+                <TouchableOpacity 
+                  style={[styles.saveButton, { backgroundColor: '#10b981' }]} 
+                  onPress={confirmarArticuloFlotante}
+                >
+                  <Ionicons name="checkmark-circle-outline" size={20} color="#ffffff" style={{ marginRight: 8 }} />
+                  <ThemedText style={{ color: '#ffffff', fontWeight: 'bold', fontSize: 16 }}>Agregar al Carrito</ThemedText>
+                </TouchableOpacity>
+              </View>
+            </KeyboardAvoidingView>
+          </View>
+        </Modal>
+
+        {/* MODAL PARA ARTÍCULOS AGRUPADOS */}
+        <Modal visible={showAgrupadoModal} animationType="slide" transparent={true}>
+          <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 }}>
+            <View style={{ backgroundColor: isDark ? '#1e293b' : '#ffffff', borderRadius: 24, padding: 24, maxHeight: '80%' }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                <View>
+                  <ThemedText type="subtitle">Grupos de {agrupadoArt?.NOMBRE}</ThemedText>
+                  <ThemedText style={{ color: '#3b82f6', marginTop: 4 }}>Seleccione una presentación</ThemedText>
+                </View>
+                <TouchableOpacity onPress={() => setShowAgrupadoModal(false)}>
+                  <Ionicons name="close-circle" size={32} color={isDark ? '#475569' : '#cbd5e1'} />
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView style={{ flexGrow: 0 }}>
+                {gruposDisponibles.map((grupo, idx) => (
+                  <TouchableOpacity 
+                    key={idx}
+                    style={{
+                      flexDirection: 'row',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      padding: 16,
+                      backgroundColor: isDark ? '#334155' : '#f8fafc',
+                      borderRadius: 12,
+                      marginBottom: 10,
+                      borderWidth: 1,
+                      borderColor: isDark ? '#475569' : '#e2e8f0'
+                    }}
+                    onPress={() => seleccionarGrupo(grupo)}
+                  >
+                    <View>
+                      <ThemedText type="defaultSemiBold" style={{ fontSize: 16 }}>{grupo.NombreGrupo}</ThemedText>
+                      <ThemedText style={{ fontSize: 12, color: isDark ? '#94a3b8' : '#64748b', marginTop: 4 }}>
+                        Cant. Base: {parseFloat(grupo.Cantidad).toFixed(2)} Und.
+                      </ThemedText>
+                    </View>
+                    <ThemedText style={{ fontWeight: 'bold', fontSize: 16, color: '#10b981' }}>
+                      C$ {parseFloat(grupo.PrecioGrupo || 0).toFixed(2)}
+                    </ThemedText>
+                  </TouchableOpacity>
+                ))}
+                
+                {gruposDisponibles.length === 0 && (
+                  <ThemedText style={{ textAlign: 'center', marginTop: 20, color: '#94a3b8' }}>
+                    No se encontraron grupos para este artículo.
+                  </ThemedText>
+                )}
               </ScrollView>
             </View>
           </View>
@@ -711,7 +981,7 @@ const styles = StyleSheet.create({
   },
   footer: {
     padding: 16,
-    paddingBottom: 90, // Margen extra para que los botones aéreos (tab bar) no tapen el footer
+    paddingBottom: 20, // Reducido para no dejar tanto espacio vacío
     borderTopWidth: 1,
   },
   noteInput: {
