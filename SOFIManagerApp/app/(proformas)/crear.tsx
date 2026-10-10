@@ -32,6 +32,8 @@ type ArticuloProforma = {
   agrupado?: boolean;
   baseCantidad?: number;
   basePrecio?: number;
+  integrado?: boolean;
+  integradoComponentes?: any[];
 };
 
 export default function CrearProformaScreen() {
@@ -43,6 +45,7 @@ export default function CrearProformaScreen() {
   const [clientesRaw, setClientesRaw] = useState<any[]>([]);
   const [articulosRaw, setArticulosRaw] = useState<any[]>([]);
   const [agrupadosRaw, setAgrupadosRaw] = useState<any[]>([]);
+  const [integradosRaw, setIntegradosRaw] = useState<any[]>([]);
   const [isLoadingData, setIsLoadingData] = useState(false);
   const [noResumirLineas, setNoResumirLineas] = useState(false);
 
@@ -72,6 +75,11 @@ export default function CrearProformaScreen() {
   const [agrupadoArt, setAgrupadoArt] = useState<any>(null);
   const [gruposDisponibles, setGruposDisponibles] = useState<any[]>([]);
 
+  // Integrados (Combos)
+  const [showIntegradoModal, setShowIntegradoModal] = useState(false);
+  const [integradoArt, setIntegradoArt] = useState<any>(null);
+  const [integradoComponentesDisp, setIntegradoComponentesDisp] = useState<any[]>([]);
+
   // Totales
   const subtotal = detalles.reduce((acc, item) => acc + (item.precio * item.cantidad), 0);
   const totalDescuento = detalles.reduce((acc, item) => acc + ((item.descuento || 0) * item.cantidad), 0);
@@ -100,6 +108,10 @@ export default function CrearProformaScreen() {
           // Fetch Agrupados
           const resAgrup = await fetch(`http://${config.directIp}:5246/api/reports/articulosagrupados`);
           if (resAgrup.ok) setAgrupadosRaw(await resAgrup.json());
+
+          // Fetch Integrados
+          const resInteg = await fetch(`http://${config.directIp}:5246/api/reports/articulosintegados`);
+          if (resInteg.ok) setIntegradosRaw(await resInteg.json());
 
           // Fetch Configuración
           const resConf = await fetch(`http://${config.directIp}:5246/api/reports/configuracion`);
@@ -159,6 +171,16 @@ export default function CrearProformaScreen() {
       setGruposDisponibles(gruposDelArt);
       setShowArticulosModal(false);
       setShowAgrupadoModal(true);
+      return;
+    }
+
+    // Si es tipo integrado (combo)
+    if (art.TipoDeArticuloNombre?.toLowerCase() === 'integrado') {
+      setIntegradoArt(art);
+      const componentes = integradosRaw.filter(i => String(i.MasterIDART) === String(art.IDART));
+      setIntegradoComponentesDisp(componentes);
+      setShowArticulosModal(false);
+      setShowIntegradoModal(true);
       return;
     }
 
@@ -242,6 +264,31 @@ export default function CrearProformaScreen() {
     }
     setShowAgrupadoModal(false);
     setSearchQuery('');
+  };
+
+  const confirmarIntegrado = () => {
+    if (integradoArt) {
+      const artIdUnico = `${integradoArt.IDART}-INT-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+      
+      // Calculamos el precio total sumando el PrecioTotal de todos sus componentes
+      const precioTotal = integradoComponentesDisp.reduce((acc, c) => acc + (parseFloat(c.PrecioTotal) || 0), 0);
+      
+      const nuevoArticulo: ArticuloProforma = {
+        id: artIdUnico,
+        codigo: integradoArt.IDART,
+        nombre: integradoArt.NOMBRE || 'COMBO',
+        cantidad: 1,
+        precio: precioTotal,
+        iva: 0,
+        descuento: 0,
+        raw: integradoArt,
+        integrado: true,
+        integradoComponentes: integradoComponentesDisp
+      };
+      
+      setDetalles([...detalles, nuevoArticulo]);
+      setShowIntegradoModal(false);
+    }
   };
 
   const editarArticulo = (index: number) => {
@@ -381,6 +428,38 @@ export default function CrearProformaScreen() {
                 ExtId: ""
               }
             ];
+          } else if (d.integrado && d.integradoComponentes) {
+            // Generar fila visual principal
+            const filaVisual = {
+              Codigo: d.codigo,
+              Cantidad: d.cantidad, 
+              Total: (d.precio - (d.descuento || 0)) * d.cantidad, 
+              Descuento: (d.descuento || 0) * d.cantidad,
+              Precio: d.precio, 
+              Impto: d.iva * d.cantidad,
+              Nombre: d.nombre,
+              Oculto: 0,
+              DetId: detId,
+              Sumat: 1,
+              ExtId: ""
+            };
+            
+            // Generar filas hijas ocultas
+            const filasHijas = d.integradoComponentes.map(comp => ({
+              Codigo: comp.IDART,
+              Cantidad: d.cantidad * (parseFloat(comp.Cantidad) || 1),
+              Total: (parseFloat(comp.PrecioTotal) || 0) * d.cantidad,
+              Descuento: 0,
+              Precio: parseFloat(comp.PrecioUnitario) || 0,
+              Impto: 0,
+              Nombre: comp.Descripcion,
+              Oculto: 1,
+              DetId: detId,
+              Sumat: 0,
+              ExtId: comp.Id ? String(comp.Id) : ""
+            }));
+            
+            return [filaVisual, ...filasHijas];
           } else {
             return [{
               Codigo: d.codigo,
@@ -848,6 +927,71 @@ export default function CrearProformaScreen() {
                   </ThemedText>
                 )}
               </ScrollView>
+            </View>
+          </View>
+        </Modal>
+
+        {/* MODAL PARA ARTÍCULOS INTEGRADOS (COMBOS) */}
+        <Modal visible={showIntegradoModal} animationType="slide" transparent={true}>
+          <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 }}>
+            <View style={{ backgroundColor: isDark ? '#1e293b' : '#ffffff', borderRadius: 24, padding: 24, maxHeight: '80%' }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                <View style={{ flex: 1 }}>
+                  <ThemedText type="subtitle">Agregar Integrado</ThemedText>
+                  <ThemedText style={{ color: '#3b82f6', marginTop: 4, fontWeight: 'bold' }}>
+                    {integradoArt?.NOMBRE}
+                  </ThemedText>
+                </View>
+                <TouchableOpacity onPress={() => setShowIntegradoModal(false)}>
+                  <Ionicons name="close-circle" size={32} color={isDark ? '#475569' : '#cbd5e1'} />
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView style={{ flexGrow: 0, marginBottom: 20 }}>
+                <View style={{ flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: isDark ? '#475569' : '#e2e8f0', paddingBottom: 8, marginBottom: 8 }}>
+                  <ThemedText style={{ flex: 1, fontWeight: 'bold' }}>IDART</ThemedText>
+                  <ThemedText style={{ flex: 3, fontWeight: 'bold' }}>Descripción</ThemedText>
+                  <ThemedText style={{ flex: 1, fontWeight: 'bold', textAlign: 'right' }}>Cantidad</ThemedText>
+                </View>
+                
+                {integradoComponentesDisp.map((comp, idx) => (
+                  <View key={idx} style={{ flexDirection: 'row', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: isDark ? '#334155' : '#f1f5f9' }}>
+                    <ThemedText style={{ flex: 1 }}>{comp.IDART}</ThemedText>
+                    <ThemedText style={{ flex: 3 }} numberOfLines={1}>{comp.Descripcion}</ThemedText>
+                    <ThemedText style={{ flex: 1, textAlign: 'right' }}>{parseFloat(comp.Cantidad).toFixed(2)}</ThemedText>
+                  </View>
+                ))}
+                
+                {integradoComponentesDisp.length === 0 && (
+                  <ThemedText style={{ textAlign: 'center', marginTop: 20, color: '#94a3b8' }}>
+                    Este combo no tiene componentes configurados.
+                  </ThemedText>
+                )}
+              </ScrollView>
+              
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, backgroundColor: isDark ? '#334155' : '#f8fafc', padding: 16, borderRadius: 12 }}>
+                <View>
+                  <ThemedText style={{ fontSize: 14, color: isDark ? '#94a3b8' : '#64748b' }}>Unidades Totales</ThemedText>
+                  <ThemedText style={{ fontSize: 18, fontWeight: 'bold' }}>
+                    {integradoComponentesDisp.reduce((acc, c) => acc + (parseFloat(c.Cantidad) || 0), 0).toFixed(2)}
+                  </ThemedText>
+                </View>
+                <View style={{ alignItems: 'flex-end' }}>
+                  <ThemedText style={{ fontSize: 14, color: isDark ? '#94a3b8' : '#64748b' }}>Precio Total</ThemedText>
+                  <ThemedText style={{ fontSize: 18, fontWeight: 'bold', color: '#10b981' }}>
+                    C$ {integradoComponentesDisp.reduce((acc, c) => acc + (parseFloat(c.PrecioTotal) || 0), 0).toFixed(2)}
+                  </ThemedText>
+                </View>
+              </View>
+
+              <TouchableOpacity 
+                style={[styles.saveButton, { backgroundColor: '#3b82f6' }]} 
+                onPress={confirmarIntegrado}
+                disabled={integradoComponentesDisp.length === 0}
+              >
+                <Ionicons name="checkmark-circle" size={20} color="#ffffff" style={{ marginRight: 8 }} />
+                <ThemedText style={{ color: '#ffffff', fontWeight: 'bold', fontSize: 16 }}>Aceptar</ThemedText>
+              </TouchableOpacity>
             </View>
           </View>
         </Modal>
